@@ -1,0 +1,383 @@
+#!/usr/bin/env python
+#%# family=auto
+#%# capabilities=autoconf suggest
+
+import commands
+import math
+import os
+import re
+import sys
+import urllib
+import urlparse
+import xml.dom.minidom
+
+def getDirSize(path):
+  size = 0
+  for f in os.listdir(path):
+    size += os.path.getsize(os.path.join(path, f))
+  return size
+
+def readFile(path):
+  output = None
+  try:
+    f = open(path)
+  except IOError:
+    f = None
+  if f is not None:
+    try:
+      output = f.read()
+    finally:
+      f.close()
+  return output
+
+def readProperties(path, separator):
+  output = None
+  try:
+    f = open(path)
+  except IOError:
+    f = None
+  if f is not None:
+    try:
+      output = {}
+      for line in f:
+        line = line.strip()
+        if len(line) == 0 or line.startswith("#"): continue
+        try:
+          key, value = map(lambda s: s.strip(), line.split(separator, 1))
+          output[key] = value
+        except ValueError:
+          print "Ignoring line: %s" % line
+    finally:
+      f.close()
+  return output
+
+def findEnginePaths(searchPath):
+  for path in searchPath.split(os.path.pathsep):
+    if len(path) == 0: continue
+    f = os.path.join(path, "discovery.properties")
+    if os.path.isfile(f):
+      yield path
+    elif os.path.isdir(path):
+      for subPath in os.listdir(path):
+        subPath = os.path.join(path, subPath)
+        f = os.path.join(os.path.join(subPath, "discovery.properties"))
+        if os.path.isfile(f):
+          yield subPath
+  
+class LocalEngine:
+  def __init__(self, path):
+    if not os.path.isdir(path):
+      raise "Not a directory: %s" % path
+    self.path = path
+    self.refresh()
+  def refresh(self):
+    self.properties = readProperties(
+      os.path.join(self.path, "discovery.properties"), "=")
+    if self.properties is None:
+      raise "Couldn't read properties file in %s" % self.path
+    self.port = int(self.properties["port"])
+    self.url = "http://localhost:%s" % self.port
+    try:
+      self.state = readProperties(
+        os.path.join(self.path, "discovery.state"), ":")
+    except IOError:
+      self.state = None
+    pid = readFile(os.path.join(self.path, "discovery.pid"))
+    if pid is not None:
+      try:
+        self.pid = int(pid)
+      except ValueError:
+        self.pid = None
+    else:
+      self.pid = None
+  def isRunning(self):
+    output = False
+    if self.state is not None and self.state["state"] != "stopped":
+      output = self.isProcessLive()
+    return output
+  def isProcessLive(self):
+    output = False
+    if self.pid is not None:
+      try:
+        os.kill(self.pid, 0)
+        output = True
+      except OSError:
+        pass
+    return output
+  def __str__(self):
+    output = "[LocalEngine port=%s" % self.port
+    if self.pid is not None:
+      output += " pid=%s" % self.pid
+    output += "]"
+    return output
+
+def extractMonitorAndPort(arg):
+  monitor = None
+  port = None
+  tokens = arg.split("_", 1)
+  if len(tokens) == 2 and len(tokens[1]) != 0:
+    program = tokens[0]
+    rest = tokens[1]
+    tokens = rest.rsplit("_", 1)
+    if len(tokens) == 2:
+      if len(tokens[1]) == 0:
+        monitor = tokens[0]
+      else:
+        try:
+          port = int(tokens[1])
+          monitor = tokens[0]
+        except ValueError:
+          pass      
+      if port is None:
+        monitor = rest
+  return (monitor, port)
+
+def getMonitorAndPort(arg, monitors):
+  configFn = None
+  fetchFn = None
+  isLocal = True
+  port = None
+  monitor = None
+  tokens = arg.split("_")
+  if len(tokens) > 1:
+    del tokens[0]
+    try:
+      port = int(tokens[-1])
+      del tokens[-1]
+    except ValueError:
+      pass
+    if len(tokens[-1]) == 0:
+      del tokens[-1]
+    if len(tokens) > 0:
+      monitor = "_".join(tokens)
+  if monitor is not None:
+    try:
+      (configFn, fetchFn, isLocal) = monitors[monitor]
+    except KeyError:
+      raise "Unknown monitor type: %s " % monitor
+  return (port, configFn, fetchFn, isLocal)
+
+def findEngine(port):
+  engine = None
+  engines = {}
+  path = os.environ.get('DISCOVERY_DIR', None)
+  if path is not None and os.path.isfile(os.path.join(path, \
+                                                      "discovery.properties")):
+    port = None
+    engine = LocalEngine(path)
+    engines[engine.port] = engine
+  if engine is None:
+    paths = os.environ.get('DISCOVERY_PATH', '')
+    for path in findEnginePaths(paths):
+      engine = LocalEngine(path)
+      if not engine.port in engines:
+        engines[engine.port] = engine
+    if port is not None:
+      engine = engines[port]
+    else:
+      engine = None
+  return (engine, engines)
+  
+def munin_plugin(argv, monitors):
+  usage_message = \
+    "Usage: %s [config|suggest|engines]" % os.path.basename(argv[0])
+  if len(argv) < 1 or len(argv) > 2:
+    print usage_message
+    raise SystemExit(1)
+
+  port, configFn, fetchFn, isLocal = getMonitorAndPort(argv[0], monitors)
+  engine, engines = findEngine(port)
+
+  if len(argv) == 1 or (len(argv) == 2 and len(argv[1]) == 0):
+    if fetchFn is None or engine is None:
+      print "Can't derive engine instance from program name."
+      raise SystemExit(1)
+    if isLocal:
+      fetchFn(engine)
+    else:
+      fetchFn(engine.url)
+  elif argv[1] == 'config':
+    if configFn is None:
+      print "Can't derive monitor type from program name."
+      raise SystemExit(1)
+    if isLocal:
+      configFn(engine)
+    else:
+      configFn(engine.url)
+  elif argv[1] == 'suggest':
+    if configFn is None or fetchFn is None:
+      for monitor in monitors.keys():
+        print monitor
+      pass
+    else:
+      for port in engines.keys():
+        print port
+  elif argv[1] == 'autoconf':
+    print "yes"
+    raise SystemExit(0)
+  elif argv[1] == "engines":
+    print "Available engines:"
+    for port, engine in engines.items():
+      print "  port=%s path=%s" % (engine.port, engine.path)
+    print "Live engines:"
+    for port, engine in engines.items():
+      if engine.isRunning():
+        print "  port=%s pid=%s" % (engine.port, engine.pid)
+        print "    state:"
+        for key,value in engine.state.items():
+          print "      %s = %s" % (key, value)
+        print "    properties:"
+        for key,value in engine.properties.items():
+          print "      %s = %s" % (key, value)
+  else:
+    print usage_message
+    raise SystemExit(1)
+
+def memory_config(url):
+  print "graph_title memory stats for engine at %s" % url
+  print "graph_vlabel size (bytes)"
+  print "graph_args --base 1024 -l 0"
+  print "graph_category engine"
+  print "freememory.label free memory"
+  print "totalmemory.label total memory"
+  print "maxmemory.label max memory"
+  print "graph.info Amount of free, total, and max memory reported as " + \
+        "reported by the engine, sampled every 5 minutes."
+
+def memory_fetch(url):
+  sock = urllib.urlopen(urlparse.urljoin(url, "ws/info/runtime"))
+  try:
+    doc = xml.dom.minidom.parse(sock).documentElement
+  finally:
+    sock.close()
+  print "freememory.value %s" % \
+    doc.getElementsByTagName("freeMemory")[0].firstChild.data
+  print "totalmemory.value %s" % \
+    doc.getElementsByTagName("totalMemory")[0].firstChild.data
+  print "maxmemory.value %s" % \
+    doc.getElementsByTagName("maxMemory")[0].firstChild.data
+
+def dir_size_config(engine):
+  print "graph_title dir size for engine at %s" % engine.port
+  print "graph_vlabel size (bytes)"
+  print "items.label db/items"
+  print "lucene.label db/lucene"
+  print "graph_args --base 1024 -l 0"
+  print "graph_category engine"
+  print "graph.info Disk usage for the db/items and db/lucene directories " + \
+        "taken every 5 minutes."
+  print "items.label Disk usage for db/items"
+  print "lucene.label Disk usage for db/lucene"
+
+def dir_size_fetch(engine):
+  db_path = os.path.join(engine.path, "db")
+  items_path = os.path.join(db_path, "items")
+  lucene_path = os.path.join(db_path, "lucene")
+  if os.path.isdir(items_path):
+    print "items.value %s" % getDirSize(items_path)
+  if os.path.isdir(lucene_path):
+    print "lucene.value %s" % getDirSize(lucene_path)
+
+def jstat_heap_config(engine):
+  print "graph_title Heap Usage for engine at %s" % engine.port
+  print "graph_args --base 1024 -l 0"
+  print "graph_vlabel Heap Usage(Bytes)"
+  print "graph_info Heap Usage"
+  print "graph_category engine"
+  print "Eden_Used.label Eden_Used"
+  print "Eden_Free.label Eden_Free"
+  print "Survivor0_Used.label Survivor0_Used"
+  print "Survivor0_Free.label Survivor0_Free"
+  print "Survivor1_Used.label Survivor1_Used"
+  print "Survivor1_Free.label Survivor1_Free"
+  print "Old_Used.label Old_Used"
+  print "Old_Free.label Old_Free"
+  print "Permanent_Used.label Permanent_Used"
+  print "Permanent_Free.label Permanent_Free"
+  print "Eden_Used.draw AREA"
+  print "Eden_Free.draw STACK"
+  print "Survivor0_Used.draw STACK"
+  print "Survivor0_Free.draw STACK"
+  print "Survivor1_Used.draw STACK"
+  print "Survivor1_Free.draw STACK"
+  print "Old_Used.draw STACK"
+  print "Old_Free.draw STACK"
+  print "Permanent_Used.draw STACK"
+  print "Permanent_Free.draw STACK"
+
+def jstat_heap_fetch(engine):
+  out = commands.getoutput("jstat -gc %s" % engine.pid)
+  lines = out.splitlines()
+  names = filter(lambda x: len(x) > 0, lines[0].split(" "))
+  values = filter(lambda x: len(x) > 0, lines[1].split(" "))
+  jstat = {}
+  i = 0
+  while i < len(names):
+    jstat[names[i]] = float(values[i])
+    i += 1
+  del out, lines, names, values, i
+  from math import ceil
+  print "Eden_Used.value %s" % int(ceil( \
+    jstat['EU'] * 1024))
+  print "Eden_Free.value %s" % int(ceil( \
+    (jstat['EC'] - jstat['EU']) * 1024))
+  print "Survivor0_Used.value %s" % int(ceil( \
+    jstat['S0U'] * 1024))
+  print "Survivor0_Free.value %s" % int(ceil( \
+    (jstat['S0C'] - jstat['S0U']) * 1024))
+  print "Survivor1_Used.value %s" % int(ceil(\
+    jstat['S1U'] * 1024))
+  print "Survivor1_Free.value %s" % int(ceil( \
+    (jstat['S1C'] - jstat['S1U']) * 1024))
+  print "Old_Used.value %s" % int(ceil( \
+    jstat['OU'] * 1024))
+  print "Old_Free.value %s" % int(ceil( \
+    (jstat['OC'] - jstat['OU']) * 1024))
+  print "Permanent_Used.value %s" % int(ceil( \
+    jstat['PU'] * 1024))
+  print "Permanent_Free.value %s" % int(ceil( \
+    (jstat['PC'] - jstat['PU']) * 1024))
+
+def slow_queries_config(engine):
+  print "graph_title Slow queries for engine at %s" % engine.port
+  print "graph_vlabel num slow queries"
+  print "num.label num slow queries"
+  print "num.type DERIVE"
+  print "num.min 0"
+  print "graph_args -l 0"
+  print "graph_category engine"
+  print "graph.info Count of queries slow enough to be logged to the " + \
+        "aggregator's log file. Collected every 5 minutes."
+
+def slow_queries_fetch(engine):
+  log_path = os.path.join(os.path.join(engine.path, "log"), "discovery.log")
+  if os.path.exists(log_path):
+    aggregatingRe = re.compile( \
+      r"\[com\.t11e\.progress\] Aggregating query .*\[done\]")
+    rpcRe = re.compile( \
+      r"\[com\.t11e\.progress\] POST /RPC2 .*\[done\]")
+    aggregatingCount = 0
+    rpcCount = 0
+    f = open(log_path)
+    try:      
+      for line in f:
+        if aggregatingRe.search(line) is not None:
+          aggregatingCount += 1
+        if rpcRe.search(line) is not None:
+          rpcCount += 1
+    finally:
+      f.close()
+    if aggregatingCount > 0:
+      print "num.value %s" % aggregatingCount
+    else:
+      print "num.value %s" % rpcCount
+
+MONITORS = {
+  "memory": (memory_config, memory_fetch, False),
+  "dir_size": (dir_size_config, dir_size_fetch, True),
+  "jstat_heap": (jstat_heap_config, jstat_heap_fetch, True),
+  "slow_queries": (slow_queries_config, slow_queries_fetch, True),
+}
+
+if __name__ == '__main__':
+  munin_plugin(sys.argv, MONITORS)

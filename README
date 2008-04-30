@@ -1,0 +1,39 @@
+To setup the discovery munin plugin, install munin-node on the box.
+
+Copy discovery_ into /etc/munin/custom/.
+
+Then edit /etc/munin/plugin-conf.d/munin-node to add a block
+for the plugin itself.
+
+[discovery_*]
+user discovery
+env.DISCOVERY_PATH /var/discovery/engines
+
+Then setup the appropriate symlinks in /etc/munin/plugins.
+
+To see available monitors:
+
+/etc/munin/custom/discovery_ suggest
+
+To see available engines (to help diagnose the path)
+
+env DISCOVERY_PATH="/var/discovery/engines" \
+  /etc/munin/custom/discovery_ engines
+
+To make the memory monitor available for the engine on port 8090
+
+cd /etc/munin/plugins && ln -s ../custom/discovery_ discovery_memory_8090
+
+Once you'd changed the symlinks in /etc/munin/plugin, remember to reload the
+node with /etc/init.d/munin-node restart.
+
+Sample shell script to symlink a load of engines
+
+cd /etc/munin/plugins
+for monitor in $(../custom/discovery_ suggest)
+do
+  for port in 8096 8097 18082 8812 8098 8080 19091 9086
+  do
+    ln -s ../custom/discovery_ discovery_${monitor}_${port}
+  done
+done
