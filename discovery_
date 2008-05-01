@@ -340,8 +340,9 @@ def jstat_heap_fetch(engine):
 
 def slow_queries_config(engine):
   print "graph_title Slow queries for engine at %s" % engine.port
-  print "graph_vlabel num slow queries"
-  print "num.label num slow queries"
+  print "graph_vlabel num slow queries per ${graph_period}"
+  print "graph_period minute"
+  print "num.label num slow queries per ${graph_period}"
   print "num.type DERIVE"
   print "num.min 0"
   print "graph_args -l 0"
