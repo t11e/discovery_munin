@@ -14,7 +14,10 @@ import xml.dom.minidom
 def getDirSize(path):
   size = 0
   for f in os.listdir(path):
-    size += os.path.getsize(os.path.join(path, f))
+    if os.path.isdir(os.path.join(path, f)):
+      size += getDirSize(os.path.join(path, f))
+    else:
+      size += os.path.getsize(os.path.join(path, f))
   return size
 
 def readFile(path):
@@ -338,27 +341,39 @@ def jstat_heap_fetch(engine):
   print "Permanent_Free.value %s" % int(ceil( \
     (jstat['PC'] - jstat['PU']) * 1024))
 
-def slow_queries_config(engine):
-  print "graph_title Slow queries for engine at %s" % engine.port
-  print "graph_vlabel num slow queries per ${graph_period}"
+def bad_queries_config(engine):
+  print "graph_title Problem queries for engine at %s" % engine.port
+  print "graph_vlabel queries per ${graph_period}"
   print "graph_period minute"
-  print "num.label num slow queries per ${graph_period}"
-  print "num.type DERIVE"
-  print "num.min 0"
+  print "slow.label slow queries per minute"
+  print "slow.type DERIVE"
+  print "slow.min 0"
+  print "failed.label failed queries per minute"
+  print "failed.type DERIVE"
+  print "failed.min 0"
+  print "invalid.label invalid queries per minute" 
+  print "invalid.type DERIVE"
+  print "invalid.min 0"
   print "graph_args -l 0"
   print "graph_category engine"
   print "graph.info Count of queries slow enough to be logged to the " + \
         "aggregator's log file. Collected every 5 minutes."
 
-def slow_queries_fetch(engine):
+def bad_queries_fetch(engine):
   log_path = os.path.join(os.path.join(engine.path, "log"), "discovery.log")
   if os.path.exists(log_path):
     aggregatingRe = re.compile( \
       r"\[com\.t11e\.progress\] Aggregating query .*\[done\]")
     rpcRe = re.compile( \
       r"\[com\.t11e\.progress\] POST /RPC2 .*\[done\]")
+    failedRe = re.compile( \
+      r"Query failed with exception")
+    invalidRe = re.compile( \
+      r"Controller returned error 400 when handling POST request to /RPC2")
     aggregatingCount = 0
     rpcCount = 0
+    failedCount = 0
+    invalidCount = 0
     f = open(log_path)
     try:      
       for line in f:
@@ -366,18 +381,24 @@ def slow_queries_fetch(engine):
           aggregatingCount += 1
         if rpcRe.search(line) is not None:
           rpcCount += 1
+        if failedRe.search(line) is not None:
+          failedCount += 1
+        if invalidRe.search(line) is not None:
+          invalidCount += 1
     finally:
       f.close()
     if aggregatingCount > 0:
-      print "num.value %s" % aggregatingCount
+      print "slow.value %s" % aggregatingCount
     else:
-      print "num.value %s" % rpcCount
+      print "slow.value %s" % rpcCount
+    print "failed.value %s" % failedCount
+    print "invalid.value %s" % invalidCount
 
 MONITORS = {
   "memory": (memory_config, memory_fetch, False),
   "dir_size": (dir_size_config, dir_size_fetch, True),
   "jstat_heap": (jstat_heap_config, jstat_heap_fetch, True),
-  "slow_queries": (slow_queries_config, slow_queries_fetch, True),
+  "bad_queries": (bad_queries_config, bad_queries_fetch, True),
 }
 
 if __name__ == '__main__':
