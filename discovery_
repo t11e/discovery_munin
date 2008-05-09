@@ -72,6 +72,7 @@ class LocalEngine:
     if not os.path.isdir(path):
       raise "Not a directory: %s" % path
     self.path = path
+    self.name = os.path.basename(path)
     self.refresh()
   def refresh(self):
     self.properties = readProperties(
@@ -80,6 +81,8 @@ class LocalEngine:
       raise "Couldn't read properties file in %s" % self.path
     self.port = int(self.properties["port"])
     self.url = "http://localhost:%s" % self.port
+    if self.properties.has_key("name"):
+      self.name = self.properties["name"]
     try:
       self.state = readProperties(
         os.path.join(self.path, "discovery.state"), ":")
@@ -108,7 +111,7 @@ class LocalEngine:
         pass
     return output
   def __str__(self):
-    output = "[LocalEngine port=%s" % self.port
+    output = "[LocalEngine port=%s name=%s" % (self.port, self.name)
     if self.pid is not None:
       output += " pid=%s" % self.pid
     output += "]"
@@ -198,7 +201,7 @@ def munin_plugin(argv, monitors):
     if isLocal:
       fetchFn(engine)
     else:
-      fetchFn(engine.url)
+      fetchFn(engine.name, engine.url)
   elif argv[1] == 'config':
     if configFn is None:
       print "Can't derive monitor type from program name."
@@ -206,7 +209,7 @@ def munin_plugin(argv, monitors):
     if isLocal:
       configFn(engine)
     else:
-      configFn(engine.url)
+      configFn(engine.name, engine.url)
   elif argv[1] == 'suggest':
     if configFn is None or fetchFn is None:
       for monitor in monitors.keys():
@@ -221,11 +224,11 @@ def munin_plugin(argv, monitors):
   elif argv[1] == "engines":
     print "Available engines:"
     for port, engine in engines.items():
-      print "  port=%s path=%s" % (engine.port, engine.path)
+      print "  port=%s name=%s path=%s" % (engine.port, engine.name, engine.path)
     print "Live engines:"
     for port, engine in engines.items():
       if engine.isRunning():
-        print "  port=%s pid=%s" % (engine.port, engine.pid)
+        print "  port=%s name=%s pid=%s" % (engine.port, engine.name, engine.pid)
         print "    state:"
         for key,value in engine.state.items():
           print "      %s = %s" % (key, value)
@@ -236,8 +239,8 @@ def munin_plugin(argv, monitors):
     print usage_message
     raise SystemExit(1)
 
-def memory_config(url):
-  print "graph_title memory stats for engine at %s" % url
+def memory_config(name, url):
+  print "graph_title memory stats for %s (%s)" % (name, url)
   print "graph_vlabel size (bytes)"
   print "graph_args --base 1024 -l 0"
   print "graph_category engine"
@@ -247,7 +250,7 @@ def memory_config(url):
   print "graph.info Amount of free, total, and max memory reported as " + \
         "reported by the engine, sampled every 5 minutes."
 
-def memory_fetch(url):
+def memory_fetch(name, url):
   sock = urllib.urlopen(urlparse.urljoin(url, "ws/info/runtime"))
   try:
     doc = xml.dom.minidom.parse(sock).documentElement
@@ -261,7 +264,7 @@ def memory_fetch(url):
     doc.getElementsByTagName("maxMemory")[0].firstChild.data
 
 def dir_size_config(engine):
-  print "graph_title dir size for engine at %s" % engine.port
+  print "graph_title dir size for %s (%s)" % (engine.name, engine.port)
   print "graph_vlabel size (bytes)"
   print "items.label db/items"
   print "lucene.label db/lucene"
@@ -282,7 +285,7 @@ def dir_size_fetch(engine):
     print "lucene.value %s" % getDirSize(lucene_path)
 
 def jstat_heap_config(engine):
-  print "graph_title Heap Usage for engine at %s" % engine.port
+  print "graph_title Heap Usage for %s (%s)" % (engine.name, engine.port)
   print "graph_args --base 1024 -l 0"
   print "graph_vlabel Heap Usage(Bytes)"
   print "graph_info Heap Usage"
@@ -342,7 +345,7 @@ def jstat_heap_fetch(engine):
     (jstat['PC'] - jstat['PU']) * 1024))
 
 def bad_queries_config(engine):
-  print "graph_title Problem queries for engine at %s" % engine.port
+  print "graph_title Problem queries for %s (%s)" % (engine.name, engine.port)
   print "graph_vlabel queries per ${graph_period}"
   print "graph_period minute"
   print "slow.label slow queries per minute"
