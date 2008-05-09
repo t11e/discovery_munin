@@ -354,6 +354,15 @@ def bad_queries_config(engine):
   print "invalid.label invalid queries per minute" 
   print "invalid.type DERIVE"
   print "invalid.min 0"
+  print "luceneslow.label retried lucene queries per minute" 
+  print "luceneslow.type DERIVE"
+  print "luceneslow.min 0"
+  print "lucenefailed.label failed lucene queries per minute" 
+  print "lucenefailed.type DERIVE"
+  print "lucenefailed.min 0"
+  print "oom.label out of memory errors per minute" 
+  print "oom.type DERIVE"
+  print "oom.min 0"
   print "graph_args -l 0"
   print "graph_category engine"
   print "graph.info Count of queries slow enough to be logged to the " + \
@@ -370,10 +379,19 @@ def bad_queries_fetch(engine):
       r"Query failed with exception")
     invalidRe = re.compile( \
       r"Controller returned error 400 when handling POST request to /RPC2")
+    luceneSlowRe = re.compile ( \
+      r"Lucene search required")
+    luceneFailedRe = re.compile ( \
+      r"Lucene search failed")
+    oomRe = re.compile ( \
+      r"java\.lang\.OutOfMemoryError")
     aggregatingCount = 0
     rpcCount = 0
     failedCount = 0
     invalidCount = 0
+    luceneSlowCount = 0
+    luceneFailedCount = 0
+    oomCount = 0
     f = open(log_path)
     try:      
       for line in f:
@@ -385,6 +403,12 @@ def bad_queries_fetch(engine):
           failedCount += 1
         if invalidRe.search(line) is not None:
           invalidCount += 1
+        if luceneSlowRe.search(line) is not None:
+          luceneSlowCount = 0
+        if luceneFailedRe.search(line) is not None:
+          luceneFailedCount = 0
+        if oomRe.search(line) is not None:
+          oomCount = 0
     finally:
       f.close()
     if aggregatingCount > 0:
@@ -393,6 +417,9 @@ def bad_queries_fetch(engine):
       print "slow.value %s" % rpcCount
     print "failed.value %s" % failedCount
     print "invalid.value %s" % invalidCount
+    print "luceneslow.value %s" % luceneSlowCount
+    print "lucenefailed.value %s" % luceneFailedCount
+    print "oom.value %s" % oomCount
 
 MONITORS = {
   "memory": (memory_config, memory_fetch, False),
