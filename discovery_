@@ -709,6 +709,8 @@ def bad_queries_config(engine):
   print "slow.label slow queries per minute"
   print "slow.type DERIVE"
   print "slow.min 0"
+  print "slow.warn 20"
+  print "slow.critical 50"
   print "failed.label failed queries per minute"
   print "failed.type DERIVE"
   print "failed.min 0"
