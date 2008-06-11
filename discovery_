@@ -33,6 +33,21 @@ def readFile(path):
       f.close()
   return output
 
+def getStats(hostname, path, labels):
+  output = {}
+  sock = urllib.urlopen(urlparse.urljoin(hostname, path))
+  try:
+    for line in sock.readlines():
+      (label, value) = line.split()
+      if label in labels:
+        output[label] = value
+  finally:
+    for label in labels:
+      if label not in output:
+        output[label] = 0
+    sock.close()
+  return output
+
 def readProperties(path, separator):
   output = None
   try:
@@ -277,20 +292,11 @@ def query_time_config(name, url):
   print "graph.info Time spent responding to queries (msec/sec)."
 
 def query_time_fetch(name, url):
-  regularSum = 0
-  emptySum = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/query"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "query.regular.time.sum:":
-        regularSum = value
-      elif label == "query.empty.time.sum:":
-        emptySum = value
-  finally:
-    sock.close()
-  print "regular.value %s" % regularSum
-  print "empty.value %s" % emptySum
+  regularStr = "query.regular.time.sum:"
+  emptyStr = "query.empty.time.sum:"
+  results = getStats(url, "ws/statistics/fetch/query", [regularStr, emptyStr])
+  print "regular.value %s" % results[regularStr]
+  print "empty.value %s" % results[emptyStr]
 
 def query_num_config(name, url):
   print "graph_title number of queries for %s (%s)" % (name, url)
@@ -303,16 +309,9 @@ def query_num_config(name, url):
   print "graph.info Number of queries handled by engine."
 
 def query_num_fetch(name, url):
-  queries = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/query"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "query.regular.count:":
-        queries = value
-  finally:
-    sock.close()
-  print "regular.value %s" % queries
+  queryStr = "query.regular.count:"
+  results = getStats(url, "ws/statistics/fetch/query", [queryStr])
+  print "regular.value %s" % results[queryStr]
 
 def xmlrpc_count_config(name, url):
   print "graph_title xmlrpc requests for %s (%s)" % (name, url)
@@ -331,24 +330,13 @@ def xmlrpc_count_config(name, url):
   print "graph.info Number of xmlrpc requests handled by engine, by outcome."
 
 def xmlrpc_count_fetch(name, url):
-  success = 0
-  invalid = 0
-  failed = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/xmlrpc"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "xmlrpc.success.count:":
-        success = value
-      elif label == "xmlrpc.invalid.count:":
-        invalid = value
-      elif label == "xmlrpc.failed.count:":
-        failed = value
-  finally:
-    sock.close()
-  print "success.value %s" % success
-  print "invalid.value %s" % invalid
-  print "failed.value %s" % failed
+  successStr = "xmlrpc.success.count:"
+  invalidStr = "xmlrpc.invalid.count:"
+  failedStr = "xmlrpc.failed.count:"
+  results = getStats(url, "ws/statistics/fetch/xmlrpc", [successStr, invalidStr, failedStr])
+  print "success.value %s" % results[successStr]
+  print "invalid.value %s" % results[invalidStr]
+  print "failed.value %s" % results[failedStr]
 
 def xmlrpc_time_config(name, url):
   print "graph_title xmlrpc time for %s (%s)" % (name, url)
@@ -367,24 +355,13 @@ def xmlrpc_time_config(name, url):
   print "graph.info Time spent handling xmlrpc requests, by outcome."
 
 def xmlrpc_time_fetch(name, url):
-  success = 0
-  invalid = 0
-  failed = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/xmlrpc"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "xmlrpc.success.sum:":
-        success = value
-      elif label == "xmlrpc.invalid.sum:":
-        invalid = value
-      elif label == "xmlrpc.failed.sum:":
-        failed = value
-  finally:
-    sock.close()
-  print "success.value %s" % success
-  print "invalid.value %s" % invalid
-  print "failed.value %s" % failed
+  successStr = "xmlrpc.success.sum:"
+  invalidStr = "xmlrpc.invalid.sum:"
+  failedStr = "xmlrpc.failed.sum:"
+  results = getStats(url, "ws/statistics/fetch/xmlrpc", [successStr, invalidStr, failedStr])
+  print "success.value %s" % results[successStr]
+  print "invalid.value %s" % results[invalidStr]
+  print "failed.value %s" % results[failedStr]
 
 def checkpoint_time_config(name, url):
   print "graph_title time spent checkpointing for %s (%s)" % (name, url)
@@ -397,16 +374,9 @@ def checkpoint_time_config(name, url):
   print "graph.info Time spent checkpointing."
 
 def checkpoint_time_fetch(name, url):
-  time = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/checkpoint"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "checkpoint.time.sum:":
-        time = value
-  finally:
-    sock.close()
-  print "time.value %s" % time
+  timeStr = "checkpoint.time.sum:"
+  results = getStats(url, "ws/statistics/fetch/checkpoint", [timeStr])
+  print "time.value %s" % results[timeStr]
 
 def checkpoint_count_config(name, url):
   print "graph_title number of checkpoints for %s (%s)" % (name, url)
@@ -419,16 +389,9 @@ def checkpoint_count_config(name, url):
   print "graph.info Number of checkpoints."
 
 def checkpoint_count_fetch(name, url):
-  count = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/checkpoint"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "checkpoint.time.count:":
-        count = value
-  finally:
-    sock.close()
-  print "count.value %s" % count
+  countStr = "checkpoint.time.count:"
+  results = getStats(url, "ws/statistics/fetch/checkpoint", [countStr])
+  print "count.value %s" % results[countStr]
 
 def http_count_config(name, url):
   print "graph_title number of http requests to %s (%s)" % (name, url)
@@ -441,16 +404,9 @@ def http_count_config(name, url):
   print "graph.info Number of http requests served by the engine."
 
 def http_count_fetch(name, url):
-  count = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/http"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "http.time.count:":
-        count = value
-  finally:
-    sock.close()
-  print "count.value %s" % count
+  countStr = "http.time.count:"
+  results = getStats(url, "ws/statistics/fetch/http", [countStr])
+  print "count.value %s" % results[countStr]
 
 def http_time_config(name, url):
   print "graph_title time to serve http requests to %s (%s)" % (name, url)
@@ -463,16 +419,9 @@ def http_time_config(name, url):
   print "graph.info Time to serve all http requests to the engine."
 
 def http_time_fetch(name, url):
-  time = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/http"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "http.time.sum:":
-        time = value
-  finally:
-    sock.close()
-  print "time.value %s" % time
+  timeStr = "http.time.sum:"
+  results = getStats(url, "ws/statistics/fetch/http", [timeStr])
+  print "time.value %s" % results[timeStr]
 
 def changeset_count_config(name, url):
   print "graph_title changesets processed by type: %s (%s)" % (name, url)
@@ -494,28 +443,16 @@ def changeset_count_config(name, url):
   print "graph.info Number of changesets processed by the engine, by type."
 
 def changeset_count_fetch(name, url):
-  resets = 0
-  deltas = 0
-  snapshots = 0
-  checkpoints = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/changeset"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "changeset.reset.size.count:":
-        resets = value
-      elif label == "changeset.delta.size.count:":
-        deltas = value
-      elif label == "changeset.snapshot.size.count:":
-        snapshots = value
-      elif label == "changeset.checkpoint.size.count:":
-        checkpoints = value
-  finally:
-    sock.close()
-  print "reset.value %s" % resets
-  print "delta.value %s" % deltas
-  print "snapshot.value %s" % snapshots
-  print "checkpoint.value %s" % checkpoints
+  resetStr = "changeset.reset.size.count:"
+  deltaStr = "changeset.delta.size.count:"
+  snapshotStr = "changeset.snapshot.size.count:"
+  checkpointStr = "changeset.checkpoint.size.count:"
+  results = getStats(url, "ws/statistics/fetch/changeset", [resetStr, deltaStr, \
+                                                            snapshotStr, checkpointStr])
+  print "reset.value %s" % results[resetStr]
+  print "delta.value %s" % results[deltaStr]
+  print "snapshot.value %s" % results[snapshotStr]
+  print "checkpoint.value %s" % results[checkpointStr]
 
 def changeset_size_config(name, url):
   print "graph_title size (uncompressed) of processed changesets by type: %s (%s)" % (name, url)
@@ -537,28 +474,16 @@ def changeset_size_config(name, url):
   print "graph.info Size in bytes of uncompressed changesets processed by the engine, by type."
 
 def changeset_size_fetch(name, url):
-  resets = 0
-  deltas = 0
-  snapshots = 0
-  checkpoints = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/changeset"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "changeset.reset.size.sum:":
-        resets = value
-      if label == "changeset.delta.size.sum:":
-        deltas = value
-      if label == "changeset.snapshot.size.sum:":
-        snapshots = value
-      if label == "changeset.checkpoint.size.sum:":
-        checkpoints = value
-  finally:
-    sock.close()
-  print "reset.value %s" % resets
-  print "delta.value %s" % deltas
-  print "snapshot.value %s" % snapshots
-  print "checkpoint.value %s" % checkpoints
+  resetStr = "changeset.reset.size.sum:"
+  deltaStr = "changeset.delta.size.sum:"
+  snapshotStr = "changeset.snapshot.size.sum:"
+  checkpointStr = "changeset.checkpoint.size.sum:"
+  results = getStats(url, "ws/statistics/fetch/changeset", [resetStr, deltaStr, \
+                                                            snapshotStr, checkpointStr])
+  print "reset.value %s" % results[resetStr]
+  print "delta.value %s" % results[deltaStr]
+  print "snapshot.value %s" % results[snapshotStr]
+  print "checkpoint.value %s" % results[checkpointStr]
 
 def changeset_items_config(name, url):
   print "graph_title items in changesets by type: %s (%s)" % (name, url)
@@ -577,24 +502,13 @@ def changeset_items_config(name, url):
   print "graph.info Number of items changed in changesets, by type."
 
 def changeset_items_fetch(name, url):
-  created = 0
-  modified = 0
-  deleted = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/changeset"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "changeset.apply.created.sum:":
-        created = value
-      elif label == "changeset.apply.modified.sum:":
-        modified = value
-      elif label == "changeset.apply.deleted.sum:":
-        deleted = value
-  finally:
-    sock.close()
-  print "created.value %s" % created
-  print "modified.value %s" % modified
-  print "deleted.value %s" % deleted
+  createdStr = "changeset.apply.created.sum:"
+  modifiedStr =  "changeset.apply.modified.sum:"
+  deletedStr = "changeset.apply.deleted.sum:"
+  results = getStats(url, "ws/statistics/fetch/changeset", [createdStr, modifiedStr, deletedStr])
+  print "created.value %s" % results[createdStr]
+  print "modified.value %s" % results[modifiedStr]
+  print "deleted.value %s" % results[deletedStr]
 
 def items_count_config(name, url):
   print "graph_title items in dataset for %s (%s)" % (name, url)
@@ -606,20 +520,11 @@ def items_count_config(name, url):
   print "graph.info Number of items indexed in the current partition, and in the entire dataset."
 
 def items_count_fetch(name, url):
-  indexed = 0
-  total = 0
-  sock = urllib.urlopen(urlparse.urljoin(url, "ws/statistics/fetch/index item"))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label == "index.items:":
-        created = value
-      elif label == "item.count:":
-        total = value
-  finally:
-    sock.close()
-  print "indexed.value %s" % indexed
-  print "total.value %s" % total
+  indexedStr = "index.items:"
+  totalStr = "item.count:"
+  results = getStats(url, "ws/statistics/fetch/index item", [indexedStr, totalStr])
+  print "indexed.value %s" % results[indexedStr]
+  print "total.value %s" % results[totalStr]
 
 def dir_size_config(engine):
   print "graph_title dir size for %s (%s)" % (engine.name, engine.port)
