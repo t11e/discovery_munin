@@ -22,10 +22,10 @@ def getDirSize(path):
       size += os.path.getsize(os.path.join(path, f))
   return size
 
-def readFile(path):
+def readFile(path, openFn = open):
   output = None
   try:
-    f = open(path)
+    f = openFn(path)
   except IOError:
     f = None
   if f is not None:
@@ -35,25 +35,13 @@ def readFile(path):
       f.close()
   return output
 
-def getStats(hostname, path, labels):
-  output = {}
-  sock = urllib.urlopen(urlparse.urljoin(hostname, path))
-  try:
-    for line in sock.readlines():
-      (label, value) = line.split()
-      if label in labels:
-        output[label] = value
-  finally:
-    for label in labels:
-      if label not in output:
-        output[label] = 0
-    sock.close()
-  return output
+def readStats(url, path):
+  return readProperties(urlparse.urljoin(url, path), ':', urllib.urlopen)
 
-def readProperties(path, separator):
+def readProperties(path, separator, openFn = open):
   output = None
   try:
-    f = open(path)
+    f = openFn(path)
   except IOError:
     f = None
   if f is not None:
@@ -66,7 +54,7 @@ def readProperties(path, separator):
           key, value = map(lambda s: s.strip(), line.split(separator, 1))
           output[key] = value
         except ValueError:
-          print "Ignoring line: %s" % line
+          pass
     finally:
       f.close()
   return output
@@ -330,11 +318,10 @@ def query_time_config(name, url):
   print "graph.info Time spent responding to queries (msec/sec)."
 
 def query_time_fetch(name, url):
-  regularStr = "query.regular.time.sum:"
-  emptyStr = "query.empty.time.sum:"
-  results = getStats(url, "ws/statistics/fetch/query", [regularStr, emptyStr])
-  print "regular.value %s" % results[regularStr]
-  print "empty.value %s" % results[emptyStr]
+  stats = readStats(url, "ws/statistics/fetch/query")
+  if stats:
+    print "regular.value %s" % stats.get("query.regular.time.sum", 0)
+    print "empty.value %s" % stats.get("query.empty.time.sum", 0)
 
 def query_num_config(name, url):
   print "graph_title number of queries for %s (%s)" % (name, url)
@@ -347,9 +334,9 @@ def query_num_config(name, url):
   print "graph.info Number of queries handled by engine."
 
 def query_num_fetch(name, url):
-  queryStr = "query.regular.count:"
-  results = getStats(url, "ws/statistics/fetch/query", [queryStr])
-  print "regular.value %s" % results[queryStr]
+  stats = readStats(url, "ws/statistics/fetch/query")
+  if stats:
+    print "regular.value %s" % stats.get("query.regular.count", 0)
 
 def xmlrpc_count_config(name, url):
   print "graph_title xmlrpc requests for %s (%s)" % (name, url)
@@ -368,13 +355,11 @@ def xmlrpc_count_config(name, url):
   print "graph.info Number of xmlrpc requests handled by engine, by outcome."
 
 def xmlrpc_count_fetch(name, url):
-  successStr = "xmlrpc.success.count:"
-  invalidStr = "xmlrpc.invalid.count:"
-  failedStr = "xmlrpc.failed.count:"
-  results = getStats(url, "ws/statistics/fetch/xmlrpc", [successStr, invalidStr, failedStr])
-  print "success.value %s" % results[successStr]
-  print "invalid.value %s" % results[invalidStr]
-  print "failed.value %s" % results[failedStr]
+  stats = readStats(url, "ws/statistics/fetch/xmlrpc")
+  if stats:
+    print "success.value %s" % stats.get("xmlrpc.success.count", 0)
+    print "invalid.value %s" % stats.get("xmlrpc.invalid.count", 0)
+    print "failed.value %s" % stats.get("xmlrpc.failed.count", 0)
 
 def xmlrpc_time_config(name, url):
   print "graph_title xmlrpc time for %s (%s)" % (name, url)
@@ -393,13 +378,11 @@ def xmlrpc_time_config(name, url):
   print "graph.info Time spent handling xmlrpc requests, by outcome."
 
 def xmlrpc_time_fetch(name, url):
-  successStr = "xmlrpc.success.sum:"
-  invalidStr = "xmlrpc.invalid.sum:"
-  failedStr = "xmlrpc.failed.sum:"
-  results = getStats(url, "ws/statistics/fetch/xmlrpc", [successStr, invalidStr, failedStr])
-  print "success.value %s" % results[successStr]
-  print "invalid.value %s" % results[invalidStr]
-  print "failed.value %s" % results[failedStr]
+  stats = readStats(url, "ws/statistics/fetch/xmlrpc")
+  if stats:
+    print "success.value %s" % stats.get("xmlrpc.success.sum", 0)
+    print "invalid.value %s" % stats.get("xmlrpc.invalid.sum", 0)
+    print "failed.value %s" % stats.get("xmlrpc.failed.sum", 0)
 
 def checkpoint_time_config(name, url):
   print "graph_title time spent checkpointing for %s (%s)" % (name, url)
@@ -412,9 +395,9 @@ def checkpoint_time_config(name, url):
   print "graph.info Time spent checkpointing."
 
 def checkpoint_time_fetch(name, url):
-  timeStr = "checkpoint.time.sum:"
-  results = getStats(url, "ws/statistics/fetch/checkpoint", [timeStr])
-  print "time.value %s" % results[timeStr]
+  stats = readStats(url, "ws/statistics/fetch/checkpoint")
+  if stats:
+    print "time.value %s" % stats.get("checkpoint.time.sum", 0)
 
 def checkpoint_count_config(name, url):
   print "graph_title number of checkpoints for %s (%s)" % (name, url)
@@ -427,9 +410,9 @@ def checkpoint_count_config(name, url):
   print "graph.info Number of checkpoints."
 
 def checkpoint_count_fetch(name, url):
-  countStr = "checkpoint.time.count:"
-  results = getStats(url, "ws/statistics/fetch/checkpoint", [countStr])
-  print "count.value %s" % results[countStr]
+  stats = readStats(url, "ws/statistics/fetch/checkpoint")
+  if stats:
+    print "count.value %s" % stats.get("checkpoint.time.count", 0)
 
 def http_count_config(name, url):
   print "graph_title number of http requests to %s (%s)" % (name, url)
@@ -442,9 +425,9 @@ def http_count_config(name, url):
   print "graph.info Number of http requests served by the engine."
 
 def http_count_fetch(name, url):
-  countStr = "http.time.count:"
-  results = getStats(url, "ws/statistics/fetch/http", [countStr])
-  print "count.value %s" % results[countStr]
+  stats = readStats(url, "ws/statistics/fetch/http")
+  if stats:
+    print "count.value %s" % stats.get("http.time.count", 0)
 
 def http_time_config(name, url):
   print "graph_title time to serve http requests to %s (%s)" % (name, url)
@@ -457,9 +440,9 @@ def http_time_config(name, url):
   print "graph.info Time to serve all http requests to the engine."
 
 def http_time_fetch(name, url):
-  timeStr = "http.time.sum:"
-  results = getStats(url, "ws/statistics/fetch/http", [timeStr])
-  print "time.value %s" % results[timeStr]
+  stats = readStats(url, "ws/statistics/fetch/http")
+  if stats:
+    print "time.value %s" % stats.get("http.time.sum", 0)
 
 def changeset_count_config(name, url):
   print "graph_title changesets processed by type: %s (%s)" % (name, url)
@@ -481,16 +464,12 @@ def changeset_count_config(name, url):
   print "graph.info Number of changesets processed by the engine, by type."
 
 def changeset_count_fetch(name, url):
-  resetStr = "changeset.reset.size.count:"
-  deltaStr = "changeset.delta.size.count:"
-  snapshotStr = "changeset.snapshot.size.count:"
-  checkpointStr = "changeset.checkpoint.size.count:"
-  results = getStats(url, "ws/statistics/fetch/changeset", [resetStr, deltaStr, \
-                                                            snapshotStr, checkpointStr])
-  print "reset.value %s" % results[resetStr]
-  print "delta.value %s" % results[deltaStr]
-  print "snapshot.value %s" % results[snapshotStr]
-  print "checkpoint.value %s" % results[checkpointStr]
+  stats = readStats(url, "ws/statistics/fetch/changeset")
+  if stats:
+    print "reset.value %s" % stats.get("changeset.reset.size.count", 0)
+    print "delta.value %s" % stats.get("changeset.delta.size.count", 0)
+    print "snapshot.value %s" % stats.get("changeset.snapshot.size.count", 0)
+    print "checkpoint.value %s" % stats.get("changeset.checkpoint.size.count", 0)
 
 def changeset_size_config(name, url):
   print "graph_title size (uncompressed) of processed changesets by type: %s (%s)" % (name, url)
@@ -512,16 +491,12 @@ def changeset_size_config(name, url):
   print "graph.info Size in bytes of uncompressed changesets processed by the engine, by type."
 
 def changeset_size_fetch(name, url):
-  resetStr = "changeset.reset.size.sum:"
-  deltaStr = "changeset.delta.size.sum:"
-  snapshotStr = "changeset.snapshot.size.sum:"
-  checkpointStr = "changeset.checkpoint.size.sum:"
-  results = getStats(url, "ws/statistics/fetch/changeset", [resetStr, deltaStr, \
-                                                            snapshotStr, checkpointStr])
-  print "reset.value %s" % results[resetStr]
-  print "delta.value %s" % results[deltaStr]
-  print "snapshot.value %s" % results[snapshotStr]
-  print "checkpoint.value %s" % results[checkpointStr]
+  stats = readStats(url, "ws/statistics/fetch/changeset")
+  if stats:
+    print "reset.value %s" % stats.get("changeset.reset.size.sum", 0)
+    print "delta.value %s" % stats.get("changeset.delta.size.sum", 0)
+    print "snapshot.value %s" % stats.get("changeset.snapshot.size.sum", 0)
+    print "checkpoint.value %s" % stats.get("changeset.checkpoint.size.sum", 0)
 
 def changeset_items_config(name, url):
   print "graph_title items in changesets by type: %s (%s)" % (name, url)
@@ -540,13 +515,11 @@ def changeset_items_config(name, url):
   print "graph.info Number of items changed in changesets, by type."
 
 def changeset_items_fetch(name, url):
-  createdStr = "changeset.apply.created.sum:"
-  modifiedStr =  "changeset.apply.modified.sum:"
-  deletedStr = "changeset.apply.deleted.sum:"
-  results = getStats(url, "ws/statistics/fetch/changeset", [createdStr, modifiedStr, deletedStr])
-  print "created.value %s" % results[createdStr]
-  print "modified.value %s" % results[modifiedStr]
-  print "deleted.value %s" % results[deletedStr]
+  stats = readStats(url, "ws/statistics/fetch/changeset.apply")
+  if stats:
+    print "created.value %s" % stats.get("changeset.apply.created.sum", 0)
+    print "modified.value %s" % stats.get("changeset.apply.modified.sum", 0)
+    print "deleted.value %s" % stats.get("deleted.apply.created.sum", 0)
 
 def items_count_config(name, url):
   print "graph_title items in dataset for %s (%s)" % (name, url)
@@ -558,11 +531,10 @@ def items_count_config(name, url):
   print "graph.info Number of items indexed in the current partition, and in the entire dataset."
 
 def items_count_fetch(name, url):
-  indexedStr = "index.items:"
-  totalStr = "item.count:"
-  results = getStats(url, "ws/statistics/fetch/index item", [indexedStr, totalStr])
-  print "indexed.value %s" % results[indexedStr]
-  print "total.value %s" % results[totalStr]
+  stats = readStats(url, "ws/statistics/fetch/index item")
+  if stats:
+    print "indexed.value %s" % stats.get("index.items", 0)
+    print "total.value %s" % stats.get("item.count", 0)
 
 def dir_size_config(engine):
   print "graph_title dir size for %s (%s)" % (engine.name, engine.port)
