@@ -182,10 +182,10 @@ def munin_plugin(argv, monitors):
   engines = []
   engine = None
   if options.remote_name is not None or options.remote_url is not None:
-    if options.remote_name is None or options.remote_url is None:
-      print "You must specify both remote-name and remote-url"
-      raise SystemExit(1)
-    engine = RemoteEngine(options.remote_name, options.remote_url)
+    name = options.remote_name
+    if name is None:
+      name = "RemoteEngine"
+    engine = RemoteEngine(name, options.remote_url)
     engines.append(engine)
   elif options.local is not None:
     engine = LocalEngine(options.local)
