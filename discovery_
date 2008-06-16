@@ -268,12 +268,12 @@ def munin_plugin(argv, monitors):
       fetchFn(engine)
     else:
       fetchFn(engine.name, engine.url)
-  elif argv[1] == 'config':
+  elif args[1] == 'config':
     if isLocal:
       configFn(engine)
     else:
       configFn(engine.name, engine.url)
-  elif argv[1] == 'autoconf':
+  elif args[1] == 'autoconf':
     print "yes"
     raise SystemExit(0)
   else:
