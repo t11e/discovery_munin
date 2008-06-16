@@ -11,6 +11,8 @@ import urllib
 import urlparse
 import xml.dom.minidom
 
+from optparse import OptionParser
+
 def getDirSize(path):
   size = 0
   for f in os.listdir(path):
@@ -69,7 +71,7 @@ def readProperties(path, separator):
       f.close()
   return output
 
-def findEnginePaths(searchPath):
+def findEngineDirs(searchPath):
   for path in searchPath.split(os.path.pathsep):
     if len(path) == 0: continue
     f = os.path.join(path, "discovery.properties")
@@ -82,6 +84,13 @@ def findEnginePaths(searchPath):
         if os.path.isfile(f):
           yield subPath
   
+class RemoteEngine:
+  def __init__(self, name, url):
+    self.name = name
+    self.url = url
+  def __str__(self):
+    return "[RemoteEngine name=%s url=%s]" % (self.name, self.url)
+
 class LocalEngine:
   def __init__(self, path):
     if not os.path.isdir(path):
@@ -132,126 +141,155 @@ class LocalEngine:
     output += "]"
     return output
 
-def extractMonitorAndPort(arg):
-  monitor = None
-  port = None
-  tokens = arg.split("_", 1)
-  if len(tokens) == 2 and len(tokens[1]) != 0:
-    program = tokens[0]
-    rest = tokens[1]
-    tokens = rest.rsplit("_", 1)
-    if len(tokens) == 2:
-      if len(tokens[1]) == 0:
-        monitor = tokens[0]
-      else:
-        try:
-          port = int(tokens[1])
-          monitor = tokens[0]
-        except ValueError:
-          pass      
-      if port is None:
-        monitor = rest
-  return (monitor, port)
-
-def getMonitorAndPort(arg, monitors):
-  configFn = None
-  fetchFn = None
-  isLocal = True
-  port = None
-  monitor = None
-  tokens = arg.split("_")
-  if len(tokens) > 1:
-    del tokens[0]
-    try:
-      port = int(tokens[-1])
-      del tokens[-1]
-    except ValueError:
-      pass
-    if len(tokens[-1]) == 0:
-      del tokens[-1]
-    if len(tokens) > 0:
-      monitor = "_".join(tokens)
-  if monitor is not None:
-    try:
-      (configFn, fetchFn, isLocal) = monitors[monitor]
-    except KeyError:
-      raise "Unknown monitor type: %s " % monitor
-  return (port, configFn, fetchFn, isLocal)
-
-def findEngine(port):
+def findEngine(name, engines):
   engine = None
-  engines = {}
-  path = os.environ.get('DISCOVERY_DIR', None)
-  if path is not None and os.path.isfile(os.path.join(path, \
-                                                      "discovery.properties")):
-    port = None
-    engine = LocalEngine(path)
-    engines[engine.port] = engine
-  if engine is None:
-    paths = os.environ.get('DISCOVERY_PATH', '')
-    for path in findEnginePaths(paths):
-      engine = LocalEngine(path)
-      if not engine.port in engines:
-        engines[engine.port] = engine
+  matches = filter(lambda e: e.name == name, engines)
+  if len(matches) == 0:
+    # No match by name, try by port
+    try:
+      port = int(name)
+    except ValueError:
+      port = None
     if port is not None:
-      engine = engines[port]
-    else:
-      engine = None
-  return (engine, engines)
-  
+      matches = filter(lambda e: e.port == port, engines)
+  if len(matches) > 0:
+    engine = matches[0]
+  return engine
+
 def munin_plugin(argv, monitors):
-  usage_message = \
-    "Usage: %s [config|suggest|engines]" % os.path.basename(argv[0])
-  if len(argv) < 1 or len(argv) > 2:
-    print usage_message
+  parser = OptionParser("Usage: %prog [options] [config|suggest]")
+  parser.add_option("-r", "--remote-name", dest="remote_name", help="Name of remote engine")
+  parser.add_option("-u", "--remote-url", dest="remote_url", help="URL of remote engine")
+  parser.add_option("-l", "--local", dest="local", help="Directory of local engine")
+  parser.add_option("-p", "--path", dest="path", help="Path to local engines")
+  parser.add_option("-n", "--name", dest="name", help="Name of engine to use")
+  parser.add_option("-m", "--monitor", dest="monitor", help="Name of monitor to use")
+  parser.add_option("-E", "--list-engines", action="store_true", default=False, dest="list_engines", help="List available engines")
+  parser.add_option("-M", "--list-monitors", action="store_true", default=False, dest="list_monitors", help="List available monitors")
+  parser.add_option("-v", "--verbose", action="store_true", default=False, dest="verbose", help="Enable verbose output")
+  (options, args) = parser.parse_args(argv)
+
+  # Work around in munin where it passes us one argument which is the
+  # emptry string.  
+  if len(args) == 2 and len(args[1]) == 0:
+    args = [args[0]]
+
+  if len(args) > 2:
+    print parser.format_help()
     raise SystemExit(1)
 
-  port, configFn, fetchFn, isLocal = getMonitorAndPort(argv[0], monitors)
-  engine, engines = findEngine(port)
+  if options.list_monitors:
+    print "Local monitors:"
+    for name in monitors.keys():
+      monitor = monitors[name]
+      if monitor[2]:
+        print "  %s" % name
+    print "Remote monitors:"
+    for name in monitors.keys():
+      monitor = monitors[name]
+      if not monitor[2]:
+        print "  %s" % name
+    raise SystemExit(0)
+  
+  engines = []
+  engine = None
+  if options.remote_name is not None or options.remote_url is not None:
+    if options.remote_name is None or options.remote_url is None:
+      print "You must specify both remote-name and remote-url"
+      raise SystemExit(1)
+    engine = RemoteEngine(options.remote_name, options.remote_url)
+    engines.append(engine)
+  elif options.local is not None:
+    engine = LocalEngine(options.local)
+    engines.append(engine)
+  else:
+    if options.path is not None:
+      path = options.path
+    else:
+      path = os.environ.get('DISCOVERY_PATH', '')
+    for dir in findEngineDirs(path):
+      engine = LocalEngine(dir)
+      engines.append(engine)
+    engine = None
 
-  if len(argv) == 1 or (len(argv) == 2 and len(argv[1]) == 0):
-    if fetchFn is None or engine is None:
-      print "Can't derive engine instance from program name."
+  if options.name is not None:
+    engine = findEngine(options.name, engines)
+    if engine is None:
+      print "No such engine: %s" % options.name
+      raise SystemExit(1)
+
+  if options.list_engines:
+    print "Available engines:"
+    for engine in engines:
+      if hasattr(engine, 'path'):
+        print "  name=%s port=%s path=%s" % (engine.name, engine.port, engine.path)
+      else:
+        print "  name=%s url=%s" % (engine.name, engine.url)
+    liveEngines = filter(lambda e: hasattr(e, 'isRunning') and e.isRunning(), engines)
+    if len(liveEngines) > 0:
+      print "Live local engines:"
+      for engine in liveEngines:
+        print "  name=%s port=%s pid=%s" % (engine.name, engine.port, engine.pid)
+        if options.verbose:
+          print "    state:"
+          for key,value in engine.state.items():
+            print "      %s = %s" % (key, value)
+          print "    properties:"
+          for key,value in engine.properties.items():
+            print "      %s = %s" % (key, value)
+    raise SystemExit(0)
+
+  monitor_name = None
+  if options.monitor is not None:
+    monitor_name = options.monitor
+  else:
+    # Try to extract from the program name
+    tokens = args[0].split("_")
+    if len(tokens) > 1:
+      del tokens[0]
+      name = tokens[-1]
+      del tokens[-1]
+      if len(tokens) > 0 and len(tokens[-1]) == 0:
+        del tokens[-1]
+      if len(tokens) > 0:
+        monitor_name = "_".join(tokens)
+      if len(name) == 0:
+        print "Couldn't determine engine name from script name"
+        raise SystemExit(1)
+      engine = findEngine(name, engines)
+      if engine is None:
+        print "Couldn't find engine: %s" % name
+        raise SystemExit(1)
+  if monitor_name is None:
+    print "Couldn't determine which monitor to use"
+    raise SystemExit(1)
+  try:
+    (configFn, fetchFn, isLocal) = monitors[monitor_name]
+  except KeyError:
+    print "Unsupported monitor: %s" % monitor_name
+    raise SystemExit(1)
+ 
+  if len(args) == 1:
+    if engine is None:
+      print "You have to specify an engine from which to fetch"
       raise SystemExit(1)
     if isLocal:
+      if not hasattr(engine, 'path'):
+        print "The %s monitor requires a local engine" % monitor_name
+        raise SystemError
       fetchFn(engine)
     else:
       fetchFn(engine.name, engine.url)
   elif argv[1] == 'config':
-    if configFn is None:
-      print "Can't derive monitor type from program name."
-      raise SystemExit(1)
     if isLocal:
       configFn(engine)
     else:
       configFn(engine.name, engine.url)
-  elif argv[1] == 'suggest':
-    if configFn is None or fetchFn is None:
-      for monitor in monitors.keys():
-        print monitor
-      pass
-    else:
-      for port in engines.keys():
-        print port
   elif argv[1] == 'autoconf':
     print "yes"
     raise SystemExit(0)
-  elif argv[1] == "engines":
-    print "Available engines:"
-    for port, engine in engines.items():
-      print "  port=%s name=%s path=%s" % (engine.port, engine.name, engine.path)
-    print "Live engines:"
-    for port, engine in engines.items():
-      if engine.isRunning():
-        print "  port=%s name=%s pid=%s" % (engine.port, engine.name, engine.pid)
-        print "    state:"
-        for key,value in engine.state.items():
-          print "      %s = %s" % (key, value)
-        print "    properties:"
-        for key,value in engine.properties.items():
-          print "      %s = %s" % (key, value)
   else:
-    print usage_message
+    print parser.format_help()
     raise SystemExit(1)
 
 def memory_config(name, url):
