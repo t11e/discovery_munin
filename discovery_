@@ -154,6 +154,7 @@ def munin_plugin(argv, monitors):
   parser.add_option("-m", "--monitor", dest="monitor", help="Name of monitor to use")
   parser.add_option("-E", "--list-engines", action="store_true", default=False, dest="list_engines", help="List available engines")
   parser.add_option("-M", "--list-monitors", action="store_true", default=False, dest="list_monitors", help="List available monitors")
+  parser.add_option("-S", "--script-symlinks", action="store_true", default=False, dest="script_symlinks", help="Generate a script to create the appropriate symlinks for deployment")
   parser.add_option("-v", "--verbose", action="store_true", default=False, dest="verbose", help="Enable verbose output")
   (options, args) = parser.parse_args(argv)
 
@@ -199,6 +200,17 @@ def munin_plugin(argv, monitors):
       engine = LocalEngine(dir)
       engines.append(engine)
     engine = None
+
+  if options.script_symlinks:
+    target = args[0]
+    basename = os.path.basename(target)
+    if basename[-1] != '_':
+      basename = basename + '_'
+    for engine in engines:
+      for monitor_name in monitors.keys():
+        print "ln -s \"%s\" \"%s\"" % (target,
+          "%s%s_%s" % (basename, monitor_name, engine.name))
+    raise SystemExit(0)
 
   if options.name is not None:
     engine = findEngine(options.name, engines)
