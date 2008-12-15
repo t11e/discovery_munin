@@ -683,7 +683,7 @@ def bad_queries_fetch(engine):
     luceneFailedCount = 0
     oomCount = 0
     f = open(log_path)
-    try:      
+    try:
       for line in f:
         if aggregatingRe.search(line) is not None:
           aggregatingCount += 1
@@ -711,11 +711,59 @@ def bad_queries_fetch(engine):
     print "lucenefailed.value %s" % luceneFailedCount
     print "oom.value %s" % oomCount
 
+def changeset_errors_config(engine):
+  print "graph_title Changeset processing errors for %s (%s)" % (engine.name, engine.port)
+  print "graph_vlabel errors per ${graph_period}"
+  print "graph_period minute"
+  print "index.label Indexing errors per minute"
+  print "index.type DERIVE"
+  print "index.min 0"
+  print "index.warning 1"
+  print "index.critical 10"
+  print "apply.label Apply errors per minute"
+  print "apply.type DERIVE"
+  print "apply.min 0"
+  print "apply.warning 1"
+  print "apply.critical 1"
+  print "invalid.label Invalid changesets per minute"
+  print "invalid.type DERIVE"
+  print "invalid.min 0"
+  print "graph_args -l 0"
+  print "graph_category engine"
+  print "graph.info Count of changeset processing errors from the engine's log file." + \
+      " Collected every 5 minutes."
+
+def changeset_errors_fetch(engine):
+  log_path = os.path.join(os.path.join(engine.path, "log"), "discovery.log")
+  if os.path.exists(log_path):
+    indexRe = re.compile("Problem calling onChangeset for an async listener")
+    applyRe = re.compile("Problem applying changeset")
+    invalidRe = re.compile( \
+      r"\[error\] \[com\.t11e\.zebra\.source\.ChangesetFeedsService\].* Parser error")
+    indexCount = 0
+    applyCount = 0
+    invalidCount = 0
+    f = open(log_path)
+    try:
+      for line in f:
+        if indexRe.search(line) is not None:
+          indexCount += 1
+        if applyRe.search(line) is not None:
+          applyCount += 1
+        if invalidRe.search(line) is not None:
+          invalidCount += 1
+    finally:
+      f.close()
+    print "index.value %s" % indexCount
+    print "apply.value %s" % applyCount
+    print "invalid.value %s" % invalidCount
+
 MONITORS = {
   "memory": (memory_config, memory_fetch, False),
   "dir_size": (dir_size_config, dir_size_fetch, True),
   "jstat_heap": (jstat_heap_config, jstat_heap_fetch, True),
   "bad_queries": (bad_queries_config, bad_queries_fetch, True),
+  "changeset_errors": (changeset_errors_config, changeset_errors_fetch, True),
   "query_time": (query_time_config, query_time_fetch, False),
   "query_num": (query_num_config, query_num_fetch, False),
   "xmlrpc_count": (xmlrpc_count_config, xmlrpc_count_fetch, False),
