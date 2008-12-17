@@ -1,0 +1,146 @@
+This file describes how to grab runtime statistics from a Discovery Engine.
+
+This is not a fully documented interface as the intent is that we support this internally.
+However clients may be given this information if they wish to plug their monitoring platform directly into our engine.
+
+
+To see available choices:
+
+GET /ws/statistics
+
+To get the data itself:
+
+GET /ws/statistics/fetch/http
+GET /ws/statistics/fetch/item
+GET /ws/statistics/fetch/item http
+etc. (basically last part is space delimited options from the first list)
+
+To get ALL data:
+
+GET /ws/statistics/fetch
+
+The available values currently undocumented but the important ones should be pretty obvious by just looking at the output for all values.
+
+Example:
+
+Just one query:
+$ curl http://localhost:8090/ws/statistics/fetch/query
+query.regular.count: 1
+query.regular.size.mean: 22555
+query.regular.size.sum: 22555
+query.regular.time.mean: 91
+query.regular.time.sum: 91
+
+Many queries:
+$ curl http://localhost:8090/ws/statistics/fetch/query
+query.regular.count: 2
+query.regular.size.mean: 22556.0
+query.regular.size.min: 22555
+query.regular.size.max: 22557
+query.regular.size.variance: 2.0
+query.regular.size.stddev: 1.4142135623730951
+query.regular.size.sum: 45112
+query.regular.time.mean: 70.0
+query.regular.time.min: 49
+query.regular.time.max: 91
+query.regular.time.variance: 882.0
+query.regular.time.stddev: 29.698484809834994
+query.regular.time.sum: 140
+
+Getting several fields at the same time:
+$ curl "http://localhost:8090/ws/statistics/fetch/index item"
+index.count: 41
+index.items: 27499
+item.count: 27499
+item.disk: 113837847
+
+Finding out what fields are available:
+curl http://localhost:8090/ws/statistics
+http
+changeset
+item
+checkpoint
+changeset.apply
+index
+query
+xmlrpc
+index.query.text
+index.query.tree
+index.query.keyword
+index.query.integer
+index.query.geoloc
+index.query.time
+index.query.double
+
+
+To start working with this data directly, I'd suggest capturing some subset of the following:
+
+Total time taken for all queries returning non empty results
+ query.regular.time.sum
+
+Total time taken for queries returning empty results
+ query.empty.time.sum
+
+Total number of invalid/failed/successful XMLRPC
+ xmlrpc.invalid.count
+ xmlrpc.failed.count
+ xmlrpc.success.count
+
+Total time taken for invalid/failed/successful XMLRPC
+ xmlrpc.invalid.sum
+ xmlrpc.failed.sum
+ xmlrpc.success.sum
+
+Number of items in the current partition
+ index.items
+Number of indices
+ index.count
+
+Number of items in the dataset
+ item.count
+Size of the dataset on disk (db/items directory)
+ item.disk
+
+The changeset stuff is more difficult to see on fufkin as no changesets are occuring so the counters are all empty.
+
+Number of created changesets by type:
+ changeset.reset.size.count
+ changeset.delta.size.count
+ changeset.snapshot.size.count
+ changeset.checkpoint.size.count
+Total uncompressed size:
+ changeset.reset.size.sum
+ changeset.delta.size.sum
+ changeset.snapshot.size.sum
+ changeset.checkpoint.size.sum
+Total compressed size:
+ changeset.reset.compressed.sum
+ changeset.delta.compressed.sum
+ changeset.snapshot.compressed.sum
+ changeset.checkpoint.compressed.sum
+
+Total number of applied changesets (those that are written to the DB file)
+ changeset.apply.count
+Break down of item actions across the changeset applications
+ changeset.apply.created.sum
+ changeset.apply.modified.sum
+ changeset.apply.deleted.sum
+
+Total time taken generating checkpoints:
+ checkpoint.time.sum
+Total number of checkpoints generated;
+ checkpoint.time.count
+
+Total number of HTTP requests served;
+ http.time.count
+Total time to serve them:
+ http.time.sum
+
+You should see the pattern quite easily, when appropriate the "count" variable is dropped to the left to save repeating it too many times.
+
+If something has an AverageAnalyzer behind it you'll see the following patterns:
+
+  0 recordings: count
+  1 recording: count, mean, sum
+  >1 recording: count, mean, sum, min, max, variance, stddev
+

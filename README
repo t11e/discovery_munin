@@ -37,3 +37,5 @@ do
     ln -s ../custom/discovery_ discovery_${monitor}_${port}
   done
 done
+
+Alternatively use the -S output of the script to generate the symlink commands for you.
