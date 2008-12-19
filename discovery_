@@ -300,7 +300,7 @@ def memory_config(name, url):
   print "freememory.label free memory"
   print "totalmemory.label total memory"
   print "maxmemory.label max memory"
-  print "graph.info Amount of free, total, and max memory reported as " + \
+  print "graph_info Amount of free, total, and max memory reported as " + \
         "reported by the engine, sampled every 5 minutes."
 
 def memory_fetch(name, url):
@@ -327,7 +327,7 @@ def query_time_config(name, url):
   print "empty.label empty queries"
   print "empty.type DERIVE"
   print "empty.min 0"
-  print "graph.info Time spent responding to queries (msec/sec)."
+  print "graph_info Time spent responding to queries (msec/sec)."
 
 def query_time_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/query")
@@ -343,7 +343,7 @@ def query_num_config(name, url):
   print "regular.label regular queries"
   print "regular.type DERIVE"
   print "regular.min 0"
-  print "graph.info Number of queries handled by engine."
+  print "graph_info Number of queries handled by engine."
 
 def query_num_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/query")
@@ -364,7 +364,7 @@ def xmlrpc_count_config(name, url):
   print "failed.label failed queries"
   print "failed.type DERIVE"
   print "failed.min 0"
-  print "graph.info Number of xmlrpc requests handled by engine, by outcome."
+  print "graph_info Number of xmlrpc requests handled by engine, by outcome."
 
 def xmlrpc_count_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/xmlrpc")
@@ -387,7 +387,7 @@ def xmlrpc_time_config(name, url):
   print "failed.label failed queries"
   print "failed.type DERIVE"
   print "failed.min 0"
-  print "graph.info Time spent handling xmlrpc requests, by outcome."
+  print "graph_info Time spent handling xmlrpc requests, by outcome."
 
 def xmlrpc_time_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/xmlrpc")
@@ -404,7 +404,7 @@ def checkpoint_time_config(name, url):
   print "time.label time checkpointing"
   print "time.type DERIVE"
   print "time.min 0"
-  print "graph.info Time spent checkpointing."
+  print "graph_info Time spent checkpointing."
 
 def checkpoint_time_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/checkpoint")
@@ -419,7 +419,7 @@ def checkpoint_count_config(name, url):
   print "count.label number of checkpoints"
   print "count.type DERIVE"
   print "count.min 0"
-  print "graph.info Number of checkpoints."
+  print "graph_info Number of checkpoints."
 
 def checkpoint_count_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/checkpoint")
@@ -434,7 +434,7 @@ def http_count_config(name, url):
   print "count.label number of requests"
   print "count.type DERIVE"
   print "count.min 0"
-  print "graph.info Number of http requests served by the engine."
+  print "graph_info Number of http requests served by the engine."
 
 def http_count_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/http")
@@ -449,7 +449,7 @@ def http_time_config(name, url):
   print "time.label time"
   print "time.type DERIVE"
   print "time.min 0"
-  print "graph.info Time to serve all http requests to the engine."
+  print "graph_info Time to serve all http requests to the engine."
 
 def http_time_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/http")
@@ -473,7 +473,7 @@ def changeset_count_config(name, url):
   print "checkpoint.label checkpoint"
   print "checkpoint.type DERIVE"
   print "checkpoint.min 0"
-  print "graph.info Number of changesets processed by the engine, by type."
+  print "graph_info Number of changesets processed by the engine, by type."
 
 def changeset_count_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/changeset")
@@ -500,7 +500,7 @@ def changeset_size_config(name, url):
   print "checkpoint.label checkpoint"
   print "checkpoint.type DERIVE"
   print "checkpoint.min 0"
-  print "graph.info Size in bytes of uncompressed changesets processed by the engine, by type."
+  print "graph_info Size in bytes of uncompressed changesets processed by the engine, by type."
 
 def changeset_size_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/changeset")
@@ -524,7 +524,7 @@ def changeset_items_config(name, url):
   print "deleted.label deleted items"
   print "deleted.type DERIVE"
   print "deleted.min 0"
-  print "graph.info Number of items changed in changesets, by type."
+  print "graph_info Number of items changed in changesets, by type."
 
 def changeset_items_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/changeset.apply")
@@ -540,13 +540,41 @@ def items_count_config(name, url):
   print "graph_category engine"
   print "indexed.label items indexed in current partition"
   print "total.label total items in dataset"
-  print "graph.info Number of items indexed in the current partition, and in the entire dataset."
+  print "graph_info Number of items indexed in the current partition, and in the entire dataset."
 
 def items_count_fetch(name, url):
   stats = readStats(url, "ws/statistics/fetch/index item")
   if stats:
     print "indexed.value %s" % stats.get("index.items", 0)
     print "total.value %s" % stats.get("item.count", 0)
+
+def items_disk_config(name, url):
+    print "graph_title item storage disk usage %s (%s)" % (name, url)
+    print "graph_vlabel size (bytes)"
+    print "graph_args --base 1024 -l 0"
+    print "graph_category engine"
+    print "graph_info Disk usage for the items storage taken every 5 minutes"
+    print "disk.label Disk usage for item storage"
+
+def items_disk_fetch(name, url):
+  stats = readStats(url, "ws/statistics/fetch/item")
+  if stats:
+    print "disk.value %s" % stats.get("item.disk", 0)
+
+def items_errors_config(name, url):
+  print "graph_title Item storage errors for %s (%s)" % (engine.name, engine.port)
+  print "graph_vlabel errors per ${graph_period}"
+  print "graph_category engine"
+  print "graph_info Count of item storage errors. Collected every 5 minutes."
+  print "errors.label Item storage errors per second"
+  print "errors.min 0"
+  print "errors.warning :1"
+  print "errors.critical :10"
+
+def items_errors_fetch(name, url):
+  stats = readStats(url, "ws/statistics/fetch/item")
+  if stats:
+    print "errors.value %s" % stats.get("item.errors", 0)
 
 def dir_size_config(engine):
   print "graph_title dir size for %s (%s)" % (engine.name, engine.port)
@@ -555,7 +583,7 @@ def dir_size_config(engine):
   print "lucene.label db/lucene"
   print "graph_args --base 1024 -l 0"
   print "graph_category engine"
-  print "graph.info Disk usage for the db/items and db/lucene directories " + \
+  print "graph_info Disk usage for the db/items and db/lucene directories " + \
         "taken every 5 minutes."
   print "items.label Disk usage for db/items"
   print "lucene.label Disk usage for db/lucene"
@@ -655,7 +683,7 @@ def bad_queries_config(engine):
   print "oom.min 0"
   print "graph_args -l 0"
   print "graph_category engine"
-  print "graph.info Count of queries slow enough to be logged to the " + \
+  print "graph_info Count of queries slow enough to be logged to the " + \
         "aggregator's log file. Collected every 5 minutes."
 
 def bad_queries_fetch(engine):
@@ -726,7 +754,7 @@ def changeset_errors_config(engine):
   print "invalid.min 0"
   print "graph_args -l 0"
   print "graph_category engine"
-  print "graph.info Count of changeset processing errors from the engine's log file." + \
+  print "graph_info Count of changeset processing errors from the engine's log file." + \
       " Collected every 5 minutes."
 
 def changeset_errors_fetch(engine):
@@ -772,6 +800,8 @@ MONITORS = {
   "changeset_size": (changeset_size_config, changeset_size_fetch, False),
   "changeset_items": (changeset_items_config, changeset_items_fetch, False),
   "items_count": (items_count_config, items_count_fetch, False),
+  "items_disk": (items_disk_config, items_disk_fetch, False),
+  "items_errors": (items_errors_config, items_errors_fetch, False),
 }
 
 if __name__ == '__main__':
