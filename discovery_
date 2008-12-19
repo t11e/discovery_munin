@@ -293,7 +293,7 @@ def munin_plugin(argv, monitors):
     raise SystemExit(1)
 
 def memory_config(name, url):
-  print "graph_title memory stats for %s (%s)" % (name, url)
+  print "graph_title Memory stats for %s (%s)" % (name, url)
   print "graph_vlabel size (bytes)"
   print "graph_args --base 1024 -l 0"
   print "graph_category engine"
@@ -317,7 +317,7 @@ def memory_fetch(name, url):
     doc.getElementsByTagName("maxMemory")[0].firstChild.data
 
 def query_time_config(name, url):
-  print "graph_title aggregate query time for %s (%s)" % (name, url)
+  print "graph_title Aggregate query time for %s (%s)" % (name, url)
   print "graph_vlabel time (msec per ${graph_period})"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -336,7 +336,7 @@ def query_time_fetch(name, url):
     print "empty.value %s" % stats.get("query.empty.time.sum", 0)
 
 def query_num_config(name, url):
-  print "graph_title number of queries for %s (%s)" % (name, url)
+  print "graph_title Number of queries for %s (%s)" % (name, url)
   print "graph_vlabel queries per ${graph_period}"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -351,7 +351,7 @@ def query_num_fetch(name, url):
     print "regular.value %s" % stats.get("query.regular.count", 0)
 
 def xmlrpc_count_config(name, url):
-  print "graph_title xmlrpc requests for %s (%s)" % (name, url)
+  print "graph_title XMLRPC requests for %s (%s)" % (name, url)
   print "graph_vlabel queries per ${graph_period}"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -374,7 +374,7 @@ def xmlrpc_count_fetch(name, url):
     print "failed.value %s" % stats.get("xmlrpc.failed.count", 0)
 
 def xmlrpc_time_config(name, url):
-  print "graph_title xmlrpc time for %s (%s)" % (name, url)
+  print "graph_title XMLRPC time for %s (%s)" % (name, url)
   print "graph_vlabel time (msec per ${graph_period})"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -397,7 +397,7 @@ def xmlrpc_time_fetch(name, url):
     print "failed.value %s" % stats.get("xmlrpc.failed.sum", 0)
 
 def checkpoint_time_config(name, url):
-  print "graph_title time spent checkpointing for %s (%s)" % (name, url)
+  print "graph_title Time spent checkpointing for %s (%s)" % (name, url)
   print "graph_vlabel time (msec per ${graph_period})"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -412,7 +412,7 @@ def checkpoint_time_fetch(name, url):
     print "time.value %s" % stats.get("checkpoint.time.sum", 0)
 
 def checkpoint_count_config(name, url):
-  print "graph_title number of checkpoints for %s (%s)" % (name, url)
+  print "graph_title Number of checkpoints for %s (%s)" % (name, url)
   print "graph_vlabel checkpoints per ${graph_period}"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -427,7 +427,7 @@ def checkpoint_count_fetch(name, url):
     print "count.value %s" % stats.get("checkpoint.time.count", 0)
 
 def http_count_config(name, url):
-  print "graph_title number of http requests to %s (%s)" % (name, url)
+  print "graph_title Number of http requests to %s (%s)" % (name, url)
   print "graph_vlabel requests per ${graph_period}"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -442,7 +442,7 @@ def http_count_fetch(name, url):
     print "count.value %s" % stats.get("http.time.count", 0)
 
 def http_time_config(name, url):
-  print "graph_title time to serve http requests to %s (%s)" % (name, url)
+  print "graph_title Time to serve http requests to %s (%s)" % (name, url)
   print "graph_vlabel time (msec per ${graph_period})"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -457,7 +457,7 @@ def http_time_fetch(name, url):
     print "time.value %s" % stats.get("http.time.sum", 0)
 
 def changeset_count_config(name, url):
-  print "graph_title changesets processed by type: %s (%s)" % (name, url)
+  print "graph_title Changesets processed by type: %s (%s)" % (name, url)
   print "graph_vlabel changesets per ${graph_period}"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -484,7 +484,7 @@ def changeset_count_fetch(name, url):
     print "checkpoint.value %s" % stats.get("changeset.checkpoint.size.count", 0)
 
 def changeset_size_config(name, url):
-  print "graph_title size (uncompressed) of processed changesets by type: %s (%s)" % (name, url)
+  print "graph_title Size (uncompressed) of processed changesets by type: %s (%s)" % (name, url)
   print "graph_vlabel bytes per ${graph_period}"
   print "graph_args --base 1024 -l 0"
   print "graph_category engine"
@@ -511,7 +511,7 @@ def changeset_size_fetch(name, url):
     print "checkpoint.value %s" % stats.get("changeset.checkpoint.size.sum", 0)
 
 def changeset_items_config(name, url):
-  print "graph_title items in changesets by type: %s (%s)" % (name, url)
+  print "graph_title Items in changesets by type: %s (%s)" % (name, url)
   print "graph_vlabel changes per ${graph_period}"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -534,7 +534,7 @@ def changeset_items_fetch(name, url):
     print "deleted.value %s" % stats.get("deleted.apply.created.sum", 0)
 
 def items_count_config(name, url):
-  print "graph_title items in dataset for %s (%s)" % (name, url)
+  print "graph_title Items in dataset for %s (%s)" % (name, url)
   print "graph_vlabel number of items"
   print "graph_args --base 1000 -l 0"
   print "graph_category engine"
@@ -549,7 +549,7 @@ def items_count_fetch(name, url):
     print "total.value %s" % stats.get("item.count", 0)
 
 def items_disk_config(name, url):
-    print "graph_title item storage disk usage %s (%s)" % (name, url)
+    print "graph_title Item storage disk usage %s (%s)" % (name, url)
     print "graph_vlabel size (bytes)"
     print "graph_args --base 1024 -l 0"
     print "graph_category engine"
@@ -562,7 +562,7 @@ def items_disk_fetch(name, url):
     print "disk.value %s" % stats.get("item.disk", 0)
 
 def items_errors_config(name, url):
-  print "graph_title Item storage errors for %s (%s)" % (engine.name, engine.port)
+  print "graph_title Item storage errors for %s (%s)" % (name, url)
   print "graph_vlabel errors per ${graph_period}"
   print "graph_category engine"
   print "graph_info Count of item storage errors. Collected every 5 minutes."
@@ -577,7 +577,7 @@ def items_errors_fetch(name, url):
     print "errors.value %s" % stats.get("item.errors", 0)
 
 def dir_size_config(engine):
-  print "graph_title dir size for %s (%s)" % (engine.name, engine.port)
+  print "graph_title Dir size for %s (%s)" % (engine.name, engine.port)
   print "graph_vlabel size (bytes)"
   print "items.label db/items"
   print "lucene.label db/lucene"
