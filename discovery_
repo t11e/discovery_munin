@@ -624,9 +624,11 @@ def jstat_heap_config(engine):
   print "Permanent_Used.draw STACK"
   print "Permanent_Free.draw STACK"
 
+CLEAN_RE = re.compile('[^-.a-zA-Z0-9\n]+')
 def jstat_heap_fetch(engine):
   out = commands.getoutput("jstat -gc %s" % engine.pid)
-  lines = out.splitlines()
+  out = CLEAN_RE.sub(' ', out)
+  lines = map(lambda x: x.strip(), out.splitlines())
   names = filter(lambda x: len(x) > 0, lines[0].split(" "))
   values = filter(lambda x: len(x) > 0, lines[1].split(" "))
   jstat = {}
